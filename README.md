@@ -94,6 +94,52 @@ Data/
 └── labels_[timestamp].json
 ```
 
+## Three-Column Table (3TC) Formatter
+
+A tool to format Discourse post data into a standardized three-column format for easier analysis and keyword searching.
+
+### Features
+
+- Converts multiple CSV files into a unified format
+- Generates unique IDs for each conversation
+- Creates metadata mapping for original sources
+- Supports topic metadata integration
+- Detailed logging system
+- Maintains data provenance
+
+### Usage
+
+```bash
+python src/t3c_format.py
+```
+
+The script will interactively prompt for:
+1. Input directory containing CSV files
+2. Optional topics metadata file
+3. Output directory for formatted data
+4. Custom output filename
+
+### Data Structure
+
+The formatter creates two files:
+```
+output_dir/
+├── t3c_formatted.csv        # Main data in 3-column format
+└── metadata_t3c_formatted.csv  # Source file mapping and metadata
+```
+
+Main data columns:
+- `id`: Numerical identifier for the conversation
+- `interview`: Author of the post
+- `comment`: Content of the post
+
+Metadata columns:
+- `id`: Matches the main data ID
+- `original_file`: Source CSV filename
+- `original_title`: Original topic title
+- `post_count`: Number of posts in conversation
+- Additional topic metadata (if available)
+
 ## Requirements
 
 - Python 3.6+
