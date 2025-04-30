@@ -9,29 +9,28 @@ import re
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 import sys
+import config
 
 class DiscourseScraper:
     """
     Generic scraper for any Discourse Forum
     """
     
-    def __init__(self, base_url: str):
+    def __init__(self, base_url: str, custom_headers: Dict[str, str] = None):
         # Remove trailing slash if present
         self.base_url = base_url.rstrip('/')
         self.session = requests.Session()
-        self.session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Accept': 'application/json, text/html,application/xhtml+xml,application/xml;q=0.9',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'X-Requested-With': 'XMLHttpRequest'
-        })
+        
+        # Use custom headers if provided, otherwise use default headers from config
+        headers = custom_headers if custom_headers is not None else config.DEFAULT_HEADERS
+        self.session.headers.update(headers)
         
         # Create logs directory if it doesn't exist
-        os.makedirs("Data/logs", exist_ok=True)
+        os.makedirs(config.OUTPUT_DIRS['logs'], exist_ok=True)
         
         # Set up logging with forum name in the log file
         forum_name = self.base_url.split('//')[1].split('.')[0]
-        log_filename = f"Data/logs/discourse_scraping_{forum_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+        log_filename = f"{config.OUTPUT_DIRS['logs']}/discourse_scraping_{forum_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
         
         logging.basicConfig(
             level=logging.INFO,
@@ -50,7 +49,7 @@ class DiscourseScraper:
         """
         try:
             # Try to access the site's JSON API
-            categories_url = f"{self.base_url}/categories.json"
+            categories_url = f"{self.base_url}{config.API_ENDPOINTS['categories']}"
             response = self.session.get(categories_url)
             
             # If we get a successful JSON response, it's definitely a Discourse forum
@@ -70,14 +69,8 @@ class DiscourseScraper:
             # Check if it's a Discourse site by looking for typical Discourse elements
             soup = BeautifulSoup(response.text, 'html.parser')
             
-            # Look for common Discourse elements
-            discourse_indicators = [
-                'discourse',  # Often in meta tags or classes
-                'd-header',   # Typical Discourse header class
-                'category-list',  # Common in Discourse forums
-                'topic-list',     # Common in Discourse forums
-                'discourse-forum' # Common meta tag
-            ]
+            # Look for common Discourse elements from config
+            discourse_indicators = config.DISCOURSE_INDICATORS
             
             # Check meta tags
             meta_tags = soup.find_all('meta')
@@ -116,8 +109,8 @@ class DiscourseScraper:
             response = self.session.get(url)
             response.raise_for_status()
             
-            # Be polite, wait between requests
-            time.sleep(2)
+            # Be polite, wait between requests using config
+            time.sleep(config.RATE_LIMIT_DELAY)
             
             return response.text
         except requests.exceptions.RequestException as e:
@@ -404,8 +397,9 @@ def main():
             print("Error: Please enter a valid URL starting with http:// or https://")
             continue
         
-        # Initialize scraper
-        scraper = DiscourseScraper(forum_url)
+        # Initialize scraper - allow for custom headers if needed
+        custom_headers = None  # You could load this from a file or environment variables
+        scraper = DiscourseScraper(forum_url, custom_headers)
         
         # Validate if it's a Discourse forum
         if not scraper.validate_discourse_forum():
@@ -416,7 +410,7 @@ def main():
     
     # Create output directory using forum name
     forum_name = forum_url.split('//')[1].split('.')[0]
-    base_output_dir = f"Data/{forum_name}"
+    base_output_dir = f"{config.OUTPUT_DIRS['base']}/{forum_name}"
     os.makedirs(base_output_dir, exist_ok=True)
     
     try:
